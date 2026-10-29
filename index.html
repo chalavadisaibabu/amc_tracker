@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AMC Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: header + summary strip, toolbar (search, status chips, sort), contract rows that stack to cards on phones; dialog sheets for add/edit/renew/import */
+:root {
+  /* IOTIQ brand: forest green #11271D, gold #C39C67, cream #F5F1E5 */
+  --bg: #f5f1e5;
+  --surface: #ffffff;
+  --surface-2: #faf7ef;
+  --ink: #11271d;
+  --muted: #5a6a61;
+  --line: #e3dbc8;
+  --accent: #11271d;
+  --accent-ink: #f5f1e5;
+  --accent-soft: #efe5d1;
+  --gold: #c39c67;
+  --gold-ink: #8f6a37;
+  --ok: #1c6e3a; --ok-bg: #e0f2e6;
+  --warn: #8a5200; --warn-bg: #fcecd0;
+  --bad: #a8231b; --bad-bg: #f9e1de;
+  --shadow: 0 1px 2px rgba(16,34,33,.06), 0 8px 24px rgba(16,34,33,.06);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1a13; --surface: #11271d; --surface-2: #163125; --ink: #f5f1e5; --muted: #b3ad9b; --line: #2a4436;
+  --accent: #c39c67; --accent-ink: #11271d; --accent-soft: #2c3a2a; --gold: #c39c67; --gold-ink: #d9bb8c;
+  --ok: #7fd59b; --ok-bg: #173323; --warn: #f2bb62; --warn-bg: #3a2a10; --bad: #f19288; --bad-bg: #3d1a17;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0b1a13; --surface: #11271d; --surface-2: #163125; --ink: #f5f1e5; --muted: #b3ad9b; --line: #2a4436;
+  --accent: #c39c67; --accent-ink: #11271d; --accent-soft: #2c3a2a; --gold: #c39c67; --gold-ink: #d9bb8c;
+  --ok: #7fd59b; --ok-bg: #173323; --warn: #f2bb62; --warn-bg: #3a2a10; --bad: #f19288; --bad-bg: #3d1a17;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+img { max-width: 100%; }
+body { margin: 0; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+h1 { font-size: 30px; }
+h2 { font-size: 20px; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.top p { margin: 4px 0 0; color: var(--muted); }
+.top .byline { margin-top: 2px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--bad); }
+.btn.danger.solid { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.sm { padding: 5px 10px; font-size: 13px; border-radius: 6px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.stat { padding: 14px 18px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border-top: 0; border-right: 0; border-bottom: 0; cursor: pointer; }
+.stat:first-child { border-left: 0; }
+.stat:hover { background: var(--surface-2); }
+.stat .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.stat .val { font-family: var(--f-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .sub { font-size: 12px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+.stat.value { cursor: default; }
+.stat.value:hover { background: none; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { flex: 1 1 260px; min-width: 0; position: relative; }
+.search input { width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip .n { font-family: var(--f-mono); font-size: 12px; opacity: .75; }
+.selectwrap { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+
+.notice { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.notice.warn { background: var(--warn-bg); border-color: transparent; color: var(--warn); }
+
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(0, 1.5fr) 120px 110px 92px 200px; gap: 14px; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line); }
+.row.head { border-top: 0; background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-block: 10px; }
+.row.bad { box-shadow: inset 3px 0 0 var(--bad); }
+.row.warn { box-shadow: inset 3px 0 0 var(--warn); }
+.cell { min-width: 0; }
+.client { font-weight: 600; overflow-wrap: anywhere; }
+.subtle { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.period { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; background: var(--accent-soft); color: var(--gold-ink); padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600; vertical-align: 2px; }
+.amount { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.visits { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.bar { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--gold); }
+.rowacts { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.empty { padding: 48px 20px; text-align: center; color: var(--muted); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.empty strong { color: var(--ink); font-family: var(--f-display); font-size: 18px; }
+.lbl-m { display: none; }
+
+@media (max-width: 960px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat { border-left: 0; border-top: 1px solid var(--line); }
+  .stat:nth-child(-n+2) { border-top: 0; }
+  .stat:nth-child(even) { border-left: 1px solid var(--line); }
+  .stat.value { grid-column: 1 / -1; border-left: 0; }
+  .row.head { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .row .c-client { grid-column: 1; }
+  .row .c-status { grid-column: 2; grid-row: 1; justify-self: end; }
+  .row .c-equip, .row .c-period, .row .c-amount, .row .c-visits, .row .c-acts { grid-column: 1 / -1; }
+  .amount { text-align: left; }
+  .lbl-m { display: inline; color: var(--muted); font-family: var(--f-body); font-size: 12px; margin-right: 6px; }
+  .rowacts { justify-content: flex-start; }
+}
+
+/* dialogs */
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--surface); color: var(--ink); width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 48px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(10,20,19,.45); }
+.dlg { display: flex; flex-direction: column; max-height: calc(100vh - 50px); }
+.dlg header { padding: 18px 22px 8px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.dlg header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.dlg .body { padding: 8px 22px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.dlg footer { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.x { border: 0; background: none; cursor: pointer; font-size: 22px; line-height: 1; color: var(--muted); padding: 2px 6px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 560px) { .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); } }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.field label .req { color: var(--bad); }
+.field input, .field textarea, .field select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.field textarea { min-height: 64px; resize: vertical; }
+.field .hint { font-size: 12px; color: var(--muted); }
+.section-lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold-ink); font-weight: 600; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.err { color: var(--bad); font-size: 13px; min-height: 1em; }
+.history { font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.history div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--surface-2); border-radius: 6px; font-family: var(--f-mono); }
+.drop { border: 2px dashed var(--line); border-radius: 10px; padding: 20px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+code.cols { display: block; font-family: var(--f-mono); font-size: 12px; background: var(--surface-2); padding: 10px; border-radius: 8px; overflow-x: auto; white-space: nowrap; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 50; max-width: calc(100vw - 32px); }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: up .2s ease-out; } @keyframes up { from { transform: translate(-50%, 8px); opacity: 0; } } }
+
+/* tabs + quotations */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: -6px; overflow-x: auto; }
+.tab { padding: 10px 16px; border: 0; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+.view { display: flex; flex-direction: column; gap: 20px; }
+.summary.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stat.static { cursor: default; }
+.stat.static:hover { background: none; }
+.row.q, .row.i { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) 130px 110px 340px; }
+.pill.mute { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+dialog.wide { width: min(980px, calc(100vw - 32px)); }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; }
+.tablewrap { overflow-x: auto; }
+.items { width: 100%; border-collapse: collapse; min-width: 660px; }
+.items th { font-size: 12px; text-align: left; color: var(--muted); padding: 6px; border-bottom: 1px solid var(--line); font-weight: 600; }
+.items td { padding: 6px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.items input, .items textarea { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.items textarea { resize: vertical; min-height: 38px; }
+.items .i-amt { text-align: right; padding-top: 14px; white-space: nowrap; }
+.qsplit { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: flex-start; justify-content: space-between; }
+.qsplit .taxbox { flex: 1 1 320px; }
+.totals { flex: 0 1 340px; display: flex; flex-direction: column; gap: 5px; font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.totals div { display: flex; justify-content: space-between; gap: 12px; }
+.totals .grand { font-weight: 700; font-size: 16px; border-top: 1px solid var(--line); padding-top: 7px; margin-top: 2px; }
+.totals .words { display: block; font-size: 12px; color: var(--muted); text-align: right; }
+@media (max-width: 960px) {
+  .summary.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .row.q, .row.i { grid-template-columns: minmax(0, 1fr) auto; }
+  .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) { .grid4 { grid-template-columns: minmax(0, 1fr); } }
+
+/* sign-in */
+.gate { min-height: 100vh; display: grid; place-items: center; padding-block: 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.gate form { width: min(400px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+.gate h1 { font-size: 26px; }
+.gate .byline { margin: -8px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+.gate .btn { padding: 10px 14px; }
+.who { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate" hidden>
+  <form id="form-login" novalidate>
+    <h1>AMC Tracker</h1>
+    <p class="byline">@ IOTIQ Innovations</p>
+    <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="l-err"></div>
+    <button class="btn primary" type="submit" id="l-btn">Sign in</button>
+    <p class="subtle" style="margin:0">Accounts are created by your administrator in Supabase.</p>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <div class="top">
+    <div>
+      <h1>AMC Tracker</h1>
+      <p class="byline">@ IOTIQ Innovations</p>
+      <div class="who" style="justify-content:flex-start;margin-top:6px"><span id="who-email"></span><button class="btn sm" type="button" id="btn-signout">Sign out</button></div>
+    </div>
+    <div class="actions" id="acts-contracts">
+      <button class="btn primary" id="btn-add" type="button">+ Add client AMC</button>
+    </div>
+    <div class="actions" id="acts-quotes" hidden>
+      <button class="btn" id="btn-company" type="button">Company details</button>
+      <button class="btn primary" id="btn-qnew" type="button">+ New quotation</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Pages">
+    <button class="tab" role="tab" type="button" data-view="contracts" aria-selected="true">AMC contracts</button>
+    <button class="tab" role="tab" type="button" data-view="quotations" aria-selected="false">Quotations &amp; invoices</button>  </div>
+
+  <div id="notice" hidden></div>
+
+  <section class="view" id="view-contracts">
+
+  <div class="summary" id="summary">
+    <button class="stat" type="button" data-f="all"><span class="lbl">Total contracts</span><span class="val" id="s-total">0</span><span class="sub" id="s-total-sub">&nbsp;</span></button>
+    <button class="stat" type="button" data-f="active"><span class="lbl"><i class="dot ok"></i>Active</span><span class="val" id="s-active">0</span><span class="sub">valid beyond reminder window</span></button>
+    <button class="stat" type="button" data-f="due"><span class="lbl"><i class="dot warn"></i>Renewal due</span><span class="val" id="s-due">0</span><span class="sub" id="s-due-sub">expiring within 30 days</span></button>
+    <button class="stat" type="button" data-f="expired"><span class="lbl"><i class="dot bad"></i>Expired</span><span class="val" id="s-expired">0</span><span class="sub">not renewed yet</span></button>
+    <div class="stat value"><span class="lbl">Live AMC value</span><span class="val num" id="s-value">₹0</span><span class="sub">active + renewal due</span></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search client, site, equipment, contract no." aria-label="Search contracts">
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by status"></div>
+    <label class="selectwrap" for="win">Remind
+      <select id="win"><option value="15">15 days</option><option value="30" selected>30 days</option><option value="45">45 days</option><option value="60">60 days</option><option value="90">90 days</option></select>
+    </label>
+    <label class="selectwrap" for="sort">Sort
+      <select id="sort"><option value="days">Expiry (soonest)</option><option value="client">Client A–Z</option><option value="amount">Amount (high)</option><option value="recent">Recently added</option></select>
+    </label>
+  </div>
+
+  <div class="list" id="list">
+    <div class="row head"><div>Client / Site</div><div>Equipment covered</div><div>AMC period</div><div>Status</div><div style="text-align:right">Amount</div><div>PM visits</div><div></div></div>
+    <div id="rows"><div class="empty"><strong>Loading contracts…</strong></div></div>
+  </div>
+  </section>
+
+  <section class="view" id="view-quotes" hidden>
+    <div class="summary four">
+      <div class="stat static"><span class="lbl">Quotations</span><span class="val" id="qs-total">0</span><span class="sub">all time</span></div>
+      <div class="stat static"><span class="lbl"><i class="dot warn"></i>Awaiting reply</span><span class="val" id="qs-sent">0</span><span class="sub">sent and still valid</span></div>
+      <div class="stat static"><span class="lbl"><i class="dot ok"></i>Invoiced</span><span class="val num" id="qs-billed">₹0</span><span class="sub" id="qs-billed-sub">0 invoices</span></div>
+      <div class="stat static"><span class="lbl"><i class="dot bad"></i>Payment due</span><span class="val num" id="qs-due">₹0</span><span class="sub" id="qs-due-sub">nothing overdue</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="qq" type="search" placeholder="Search quote no., client, subject" aria-label="Search quotations">
+      </div>
+      <div class="chips" id="qchips" role="group" aria-label="Filter quotations by status"></div>
+    </div>
+    <div class="list">
+      <div class="row q head"><div>Client / Subject</div><div>Quote / Invoice no.</div><div style="text-align:right">Total</div><div>Status</div><div></div></div>
+      <div id="qrows"><div class="empty"><strong>Loading quotations…</strong></div></div>
+    </div>
+  </section>
+
+</div>
+
+<datalist id="clientlist"></datalist>
+
+<!-- Quotation editor -->
+<dialog id="dlg-quote" class="wide">
+  <form class="dlg" id="form-quote" novalidate>
+    <header><div><h2 id="qedit-title">New quotation</h2><p>Your letterhead on the PDF comes from Company details.</p></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <div class="grid4">
+        <div class="field"><label for="q-no" id="lbl-no">Quotation no.</label><input id="q-no" class="mono"></div>
+        <div class="field"><label for="q-date">Date <span class="req">*</span></label><input id="q-date" type="date"></div>
+        <div class="field"><label for="q-valid" id="lbl-valid">Valid till</label><input id="q-valid" type="date"></div>
+        <div class="field"><label for="q-status">Status</label><select id="q-status"></select></div>
+      </div>
+      <div class="section-lbl">Bill to</div>
+      <div class="grid2">
+        <div class="field"><label for="q-client">Client / company name <span class="req">*</span></label><input id="q-client" list="clientlist" autocomplete="off"><span class="hint">Pick an existing AMC client to fill their details.</span></div>
+        <div class="field"><label for="q-contact">Kind attention</label><input id="q-contact"></div>
+        <div class="field"><label for="q-phone">Phone</label><input id="q-phone" inputmode="tel"></div>
+        <div class="field"><label for="q-email">Email</label><input id="q-email" type="email"></div>
+        <div class="field"><label for="q-gstin">Client GSTIN</label><input id="q-gstin" class="mono" placeholder="33ABCDE1234F1Z5"></div>
+        <div class="field"><label for="q-addr">Address</label><textarea id="q-addr" rows="2"></textarea></div>
+      </div>
+      <div class="field"><label for="q-subject">Subject</label><input id="q-subject" placeholder="e.g. Annual Maintenance Contract of IoT monitoring system"></div>
+      <div class="grid3" id="inv-only" hidden>
+        <div class="field"><label for="q-po">PO / reference no.</label><input id="q-po"></div>
+        <div class="field"><label for="q-pos">Place of supply</label><input id="q-pos" placeholder="e.g. Tamil Nadu (33)"></div>
+        <div class="field"><label for="q-paid">Amount received (₹)</label><input id="q-paid" type="number" min="0" step="any" placeholder="0"></div>
+      </div>
+      <div class="section-lbl">Items</div>
+      <div class="tablewrap"><table class="items"><thead><tr><th style="width:46%">Description</th><th>HSN/SAC</th><th style="width:72px">Qty</th><th style="width:120px">Rate (₹)</th><th style="text-align:right;width:120px">Amount (₹)</th><th style="width:34px"></th></tr></thead><tbody id="q-items"></tbody></table></div>
+      <div><button class="btn sm" type="button" id="q-additem">+ Add line</button></div>
+      <div class="qsplit">
+        <div class="grid3 taxbox">
+          <div class="field"><label for="q-taxmode">GST</label><select id="q-taxmode"><option value="cgst_sgst">CGST + SGST (same state)</option><option value="igst">IGST (other state)</option><option value="none">No GST</option></select></div>
+          <div class="field"><label for="q-taxrate">GST rate %</label><input id="q-taxrate" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="q-discount">Discount (₹)</label><input id="q-discount" type="number" min="0" step="any" placeholder="0"></div>
+        </div>
+        <div class="totals" id="q-totals"></div>
+      </div>
+      <div class="field"><label for="q-terms">Terms &amp; conditions</label><textarea id="q-terms" rows="5"></textarea><span class="hint">One per line. They're numbered on the PDF.</span></div>
+      <div class="field"><label for="q-notes">Internal notes (not printed)</label><textarea id="q-notes"></textarea></div>
+      <div class="err" id="q-err"></div>
+    </div>
+    <footer><button class="btn" type="button" data-close>Cancel</button><button class="btn" type="button" id="q-pdf">Download PDF</button><button class="btn primary" type="submit" id="q-save">Save quotation</button></footer>
+  </form>
+</dialog>
+
+<!-- Company details -->
+<dialog id="dlg-company">
+  <form class="dlg" id="form-company" novalidate>
+    <header><div><h2>Company details</h2><p>Printed as the letterhead on every quotation PDF.</p></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <div class="grid2">
+        <div class="field"><label for="c-name">Company name <span class="req">*</span></label><input id="c-name"></div>
+        <div class="field"><label for="c-gstin">GSTIN</label><input id="c-gstin" class="mono"></div>
+        <div class="field"><label for="c-phone">Phone</label><input id="c-phone"></div>
+        <div class="field"><label for="c-email">Email</label><input id="c-email" type="email"></div>
+        <div class="field"><label for="c-web">Website</label><input id="c-web"></div>
+        <div class="field"><label for="c-prefix">Quotation no. prefix</label><input id="c-prefix" class="mono" placeholder="QT"><span class="hint">Numbers run like QT-2026-001.</span></div>
+        <div class="field"><label for="c-iprefix">Invoice no. prefix</label><input id="c-iprefix" class="mono" placeholder="INV"><span class="hint">Numbers run like INV-2026-001.</span></div>
+      </div>
+      <div class="field"><label for="c-addr">Address</label><textarea id="c-addr" rows="2"></textarea></div>
+      <div class="field"><label for="c-bank">Bank details</label><textarea id="c-bank" rows="3" placeholder="Bank name, A/c no., IFSC, branch"></textarea></div>
+      <div class="field"><label for="c-terms">Default terms for new quotations</label><textarea id="c-terms" rows="5"></textarea></div>
+      <div class="field"><label for="c-iterms">Default terms for new invoices</label><textarea id="c-iterms" rows="4"></textarea></div>
+      <div class="err" id="c-err"></div>
+    </div>
+    <footer><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="submit">Save details</button></footer>
+  </form>
+</dialog>
+
+<!-- Add / edit -->
+<dialog id="dlg-edit">
+  <form class="dlg" id="form-edit" novalidate>
+    <header><div><h2 id="edit-title">Add client AMC</h2><p>Fields marked <span style="color:var(--bad)">*</span> are required.</p></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <div class="section-lbl">Client</div>
+      <div class="grid2">
+        <div class="field"><label for="f-client">Client / company name <span class="req">*</span></label><input id="f-client" required></div>
+        <div class="field"><label for="f-site">Site / location</label><input id="f-site" placeholder="e.g. Plant 2, Chennai"></div>
+        <div class="field"><label for="f-contact">Contact person</label><input id="f-contact"></div>
+        <div class="field"><label for="f-phone">Phone</label><input id="f-phone" inputmode="tel"></div>
+        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email"></div>
+        <div class="field"><label for="f-contract">AMC / contract no.</label><input id="f-contract" placeholder="e.g. AMC-2026-014"></div>
+      </div>
+      <div class="section-lbl">Coverage</div>
+      <div class="field"><label for="f-equip">Equipment / systems covered</label><input id="f-equip" placeholder="e.g. 12 IoT gateways, SCADA server, 40 sensors"></div>
+      <div class="grid3">
+        <div class="field"><label for="f-type">AMC type</label><select id="f-type"><option>Comprehensive</option><option>Non-comprehensive</option><option>Labour only</option><option>Software support</option></select></div>
+        <div class="field"><label for="f-visits">PM visits / year</label><input id="f-visits" type="number" min="0" step="1" placeholder="4"></div>
+        <div class="field"><label for="f-done">Visits done</label><input id="f-done" type="number" min="0" step="1" placeholder="0"></div>
+      </div>
+      <div class="section-lbl">Validity &amp; value</div>
+      <div class="grid3">
+        <div class="field"><label for="f-start">Start date <span class="req">*</span></label><input id="f-start" type="date" required></div>
+        <div class="field"><label for="f-end">End date <span class="req">*</span></label><input id="f-end" type="date" required><span class="hint">Fills to 1 year from start.</span></div>
+        <div class="field"><label for="f-amount">AMC amount (₹)</label><input id="f-amount" type="number" min="0" step="1" placeholder="0"></div>
+      </div>
+      <div class="field"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="Scope exclusions, PO number, billing terms…"></textarea></div>
+      <div id="edit-history" hidden><div class="section-lbl" style="margin-bottom:6px">Renewal history</div><div class="history" id="history-list"></div></div>
+      <div class="err" id="edit-err"></div>
+    </div>
+    <footer><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="submit" id="edit-save">Save contract</button></footer>
+  </form>
+</dialog>
+
+<!-- Renew -->
+<dialog id="dlg-renew">
+  <form class="dlg" id="form-renew" novalidate>
+    <header><div><h2>Renew AMC</h2><p id="renew-who"></p></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="r-start">New start</label><input id="r-start" type="date" required></div>
+        <div class="field"><label for="r-end">New end</label><input id="r-end" type="date" required></div>
+        <div class="field"><label for="r-amount">Amount (₹)</label><input id="r-amount" type="number" min="0" step="1"></div>
+      </div>
+      <div class="field"><label for="r-contract">New contract no. (optional)</label><input id="r-contract"></div>
+      <p class="subtle" style="margin:0">The current period moves to renewal history and the PM visit count resets to 0.</p>
+      <div class="err" id="renew-err"></div>
+    </div>
+    <footer><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="submit">Renew contract</button></footer>
+  </form>
+</dialog>
+
+<!-- Delete -->
+<dialog id="dlg-del">
+  <div class="dlg">
+    <header><div><h2 id="del-title">Delete this contract?</h2><p id="del-who"></p></div></header>
+    <div class="body"><p style="margin:0" id="del-body">This removes the client's AMC record and its renewal history for everyone using this tracker. It can't be undone.</p></div>
+    <footer><button class="btn" type="button" data-close>Keep it</button><button class="btn danger solid" type="button" id="del-yes">Delete</button></footer>
+  </div>
+</dialog>
+
+<!-- Import -->
+<dialog id="dlg-import">
+  <div class="dlg">
+    <header><div><h2>Import clients from CSV</h2><p>Export your Excel sheet as CSV, then drop it here. Each row becomes one AMC.</p></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <p style="margin:0" class="subtle">Recognised column headers (only Client, Start and End are required):</p>
+      <code class="cols">Client, Site, Contact, Phone, Email, Contract No, Equipment, AMC Type, Start Date, End Date, Amount, Visits, Visits Done, Notes</code>
+      <p style="margin:0" class="subtle">Dates can be 2026-04-01, 01-04-2026 or 01/04/2026 (day first).</p>
+      <label class="drop" id="drop" for="file">Drop a .csv file here or <u>choose a file</u><input id="file" type="file" accept=".csv,text/csv" hidden></label>
+      <div class="err" id="import-err"></div>
+    </div>
+    <footer><button class="btn" type="button" id="btn-template">Download blank template</button><button class="btn" type="button" data-close>Close</button></footer>
+  </div>
+</dialog>
+
+<script>
+  // ---- Supabase connection: paste your project's values here ----
+  // Supabase dashboard > Project Settings > API. Use the "anon / public" key, never the service_role key.
+  window.AMC_CONFIG = {
+    supabaseUrl: 'https://wbdgrwzgjtnqcttgvdhe.supabase.co',
+    supabaseAnonKey: 'sb_publishable_BvYRv3lySjVqnPumvrWnOw_jyUnxj5K'
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const DAY = 86400000;
+  const state = { rows: [], q: '', filter: 'all', sort: 'days', win: 30, canWrite: true, ready: false, editing: null, renewing: null, deleting: null,
+    quotes: [], qq: '', qfilter: 'all', qready: false, co: {}, qediting: null, qfromContract: null, fromQuote: null, view: 'contracts',
+    invoices: [], iq: '', ifilter: 'all', iready: false, kind: 'quote' };
+  let db = null, col = null, qcol = null, icol = null, downloads = null;
+
+  try { const w = localStorage.getItem('amc.win'); if (w) { state.win = +w; $('#win').value = w; } } catch (e) {}
+  try { const s = localStorage.getItem('amc.sort'); if (s) { state.sort = s; $('#sort').value = s; } } catch (e) {}
+
+  // ---------- date helpers (dates stored as YYYY-MM-DD) ----------
+  const parseISO = s => { if (!s) return null; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], m[2] - 1, +m[3]) : null; };
+  const toISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmt = s => { const d = parseISO(s); return d ? `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} ${d.getFullYear()}` : '—'; };
+  const oneYearFrom = s => { const d = parseISO(s); if (!d) return ''; const e = new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1); return toISO(e); };
+  const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate() + n); return toISO(d); };
+  const daysLeft = r => { const e = parseISO(r.end); return e ? Math.round((e - today()) / DAY) : null; };
+  const statusOf = r => { const d = daysLeft(r); if (d === null) return 'active'; if (d < 0) return 'expired'; if (d <= state.win) return 'due'; return 'active'; };
+  const inr = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function toast(msg) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
+  }
+  function notice(html, kind) { const n = $('#notice'); n.className = 'notice ' + (kind || ''); n.innerHTML = html; n.hidden = !html; }
+
+  // ---------- render ----------
+  function render() {
+    const rows = state.rows;
+    const counts = { all: rows.length, active: 0, due: 0, expired: 0 };
+    let value = 0, yearly = 0;
+    rows.forEach(r => { const s = statusOf(r); counts[s]++; if (s !== 'expired') value += +r.amount || 0; });
+    $('#s-total').textContent = counts.all;
+    $('#s-active').textContent = counts.active;
+    $('#s-due').textContent = counts.due;
+    $('#s-expired').textContent = counts.expired;
+    $('#s-value').textContent = inr(value);
+    $('#s-due-sub').textContent = `expiring within ${state.win} days`;
+    const clients = new Set(rows.map(r => (r.client || '').trim().toLowerCase())).size;
+    $('#s-total-sub').textContent = `${clients} client${clients === 1 ? '' : 's'}`;
+    $('#clientlist').innerHTML = [...new Set(rows.map(r => r.client).filter(Boolean))].map(n => `<option value="${esc(n)}"></option>`).join('');
+
+    const chipDefs = [['all', 'All'], ['due', 'Renewal due'], ['expired', 'Expired'], ['active', 'Active']];
+    $('#chips').innerHTML = chipDefs.map(([k, l]) => `<button type="button" class="chip" data-f="${k}" aria-pressed="${state.filter === k}">${l}<span class="n">${counts[k]}</span></button>`).join('');
+
+    const ex = rows.filter(r => r.example).length + state.quotes.filter(q => q.example).length + state.invoices.filter(i => i.example).length;
+    if (ex && state.canWrite) notice(`<span>${ex} example record${ex > 1 ? 's are' : ' is'} shown so you can see how the tracker works. Remove them once you add your own clients.</span><button class="btn sm" type="button" id="clear-ex">Remove examples</button>`);
+    else if (!state.canWrite) notice('You can view these contracts but not change them. Ask the owner for Contributor access to add or edit clients.', 'warn');
+    else if (state.ready) notice('');
+
+    const q = state.q.trim().toLowerCase();
+    let list = rows.filter(r => state.filter === 'all' || statusOf(r) === state.filter);
+    if (q) list = list.filter(r => [r.client, r.site, r.contact, r.phone, r.email, r.contractNo, r.equipment, r.notes].join(' ').toLowerCase().includes(q));
+    const by = {
+      days: (a, b) => (daysLeft(a) ?? 1e9) - (daysLeft(b) ?? 1e9),
+      client: (a, b) => (a.client || '').localeCompare(b.client || ''),
+      amount: (a, b) => (+b.amount || 0) - (+a.amount || 0),
+      recent: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')
+    }[state.sort];
+    list.sort(by);
+
+    const box = $('#rows');
+    if (!state.ready) return;
+    if (!rows.length) {
+      box.innerHTML = `<div class="empty"><strong>No AMC contracts yet</strong><span>Add your first client with its start and end date.</span>${state.canWrite ? '<div class="actions"><button class="btn primary" type="button" data-act="add">+ Add client AMC</button></div>' : ''}</div>`;
+      return;
+    }
+    if (!list.length) { box.innerHTML = `<div class="empty"><strong>No contracts match</strong><span>Try a different search or status filter.</span></div>`; return; }
+
+    box.innerHTML = list.map(r => {
+      const s = statusOf(r), d = daysLeft(r);
+      const pillCls = s === 'expired' ? 'bad' : s === 'due' ? 'warn' : 'ok';
+      const pillTxt = d === null ? 'No end date' : d < 0 ? `Expired ${-d}d ago` : d === 0 ? 'Expires today' : `${d} days left`;
+      const visits = +r.visits || 0, done = +r.visitsDone || 0;
+      const pct = visits ? Math.min(100, Math.round(done / visits * 100)) : 0;
+      const w = state.canWrite;
+      return `<div class="row ${s === 'expired' ? 'bad' : s === 'due' ? 'warn' : ''}" data-id="${esc(r.id)}">
+        <div class="cell c-client"><div class="client">${esc(r.client)}${r.example ? '<span class="tag">Example</span>' : ''}</div>
+          <div class="subtle">${esc([r.site, r.contact, r.phone].filter(Boolean).join(' · ') || '—')}</div></div>
+        <div class="cell c-equip"><div>${esc(r.equipment || '—')}</div><div class="subtle">${esc([r.amcType, r.contractNo].filter(Boolean).join(' · '))}</div></div>
+        <div class="cell c-period period"><span class="lbl-m">Period</span>${fmt(r.start)} → ${fmt(r.end)}</div>
+        <div class="cell c-status"><span class="pill ${pillCls}">${pillTxt}</span></div>
+        <div class="cell c-amount amount"><span class="lbl-m">Amount</span>${r.amount ? inr(r.amount) : '—'}</div>
+        <div class="cell c-visits">${visits ? `<div class="visits"><span class="num">${done}/${visits} done</span><div class="bar"><i style="width:${pct}%"></i></div></div>` : '<span class="subtle">—</span>'}</div>
+        <div class="cell c-acts rowacts">${w ? `${visits && done < visits ? '<button class="btn sm" type="button" data-act="visit" title="Log one PM visit">+ Visit</button>' : ''}<button class="btn sm" type="button" data-act="quote" title="Make a renewal quotation">Quote</button><button class="btn sm" type="button" data-act="renew">Renew</button><button class="btn sm" type="button" data-act="edit">Edit</button><button class="btn sm danger" type="button" data-act="del" aria-label="Delete">Delete</button>` : ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---------- events ----------
+  $('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
+  $('#win').addEventListener('change', e => { state.win = +e.target.value; try { localStorage.setItem('amc.win', e.target.value); } catch (er) {} render(); });
+  $('#sort').addEventListener('change', e => { state.sort = e.target.value; try { localStorage.setItem('amc.sort', e.target.value); } catch (er) {} render(); });
+  document.addEventListener('click', e => {
+    const tb = e.target.closest('[data-view]');
+    if (tb) { showView(tb.dataset.view); return; }
+    const f = e.target.closest('[data-f]');
+    if (f) { state.filter = f.dataset.f; render(); return; }
+    const qf = e.target.closest('[data-qf]');
+    if (qf) { state.qfilter = qf.dataset.qf; renderQuotes(); return; }
+    if (e.target.closest('[data-close]')) { e.target.closest('dialog').close(); return; }
+    if (e.target.id === 'clear-ex') { clearExamples(); return; }
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const act = a.dataset.act;
+    if (act === 'add') return openEdit(null);
+    if (act === 'import') return openImport();
+    if (act === 'qnew') return openQuote(null, 'new');
+    const qid = a.closest('.row')?.dataset.qid;
+    if (qid) {
+      const q = state.quotes.find(x => x.id === qid); if (!q) return;
+      const i = q.invoiceId && state.invoices.find(x => x.id === q.invoiceId);
+      if (i) {
+        if (act === 'ipdf') quotePdf(i, 'invoice');
+        if (act === 'iedit') openQuote(i, 'edit', 'invoice');
+        if (act === 'ipaid') markPaid(i);
+        if (act === 'idel') askDelete('invoice', i);
+      }
+      if (act === 'qpdf') quotePdf(q);
+      if (act === 'qedit') openQuote(q, 'edit');
+      if (act === 'qdup') { const c = strip(q); delete c.contractId; delete c.forContract; delete c.invoiceId; delete c.invoiceNo; c.example = false; openQuote(c, 'new'); }
+      if (act === 'qconv') amcFromQuote(q);
+      if (act === 'qinv') invoiceFromQuote(q);
+      if (act === 'qdel') askDelete('quote', q);
+      return;
+    }
+    const id = a.closest('.row')?.dataset.id; const r = state.rows.find(x => x.id === id); if (!r) return;
+    if (act === 'edit') openEdit(r);
+    if (act === 'renew') openRenew(r);
+    if (act === 'quote') quoteFromContract(r);
+    if (act === 'del') askDelete('contract', r);
+    if (act === 'visit') logVisit(r);
+  });
+  function askDelete(kind, r) {
+    state.deleting = { kind, r };
+    const isQ = kind !== 'contract', label = kind === 'quote' ? 'quotation' : 'invoice';
+    $('#del-title').textContent = isQ ? `Delete this ${label}?` : 'Delete this contract?';
+    $('#del-who').textContent = isQ ? `${r.quoteNo} · ${r.client}` : `${r.client}${r.contractNo ? ' · ' + r.contractNo : ''}`;
+    $('#del-body').textContent = isQ ? `This removes the ${label} for everyone using this tracker. PDFs you already downloaded are not affected. It can’t be undone.` : 'This removes the client’s AMC record and its renewal history for everyone using this tracker. It can’t be undone.';
+    $('#dlg-del').showModal();
+  }
+  $('#btn-add').addEventListener('click', () => openEdit(null));
+
+  // ---------- add / edit ----------
+  const F = ['client', 'site', 'contact', 'phone', 'email', 'contractNo', 'equipment', 'amcType', 'visits', 'visitsDone', 'start', 'end', 'amount', 'notes'];
+  const fid = { contractNo: 'f-contract', equipment: 'f-equip', amcType: 'f-type', visitsDone: 'f-done' };
+  const input = k => $('#' + (fid[k] || 'f-' + k));
+  function openEdit(r) {
+    if (!state.canWrite) return;
+    state.editing = r; state.fromQuote = null;
+    $('#edit-title').textContent = r ? 'Edit AMC' : 'Add client AMC';
+    $('#edit-save').textContent = r ? 'Save changes' : 'Save contract';
+    F.forEach(k => { input(k).value = r ? (r[k] ?? '') : ''; });
+    if (!r) { input('amcType').value = 'Comprehensive'; input('start').value = toISO(today()); input('end').value = oneYearFrom(toISO(today())); }
+    const h = r?.history || [];
+    $('#edit-history').hidden = !h.length;
+    $('#history-list').innerHTML = h.slice().reverse().map(p => `<div><span>${fmt(p.start)} → ${fmt(p.end)}</span><span>${p.amount ? inr(p.amount) : ''}</span></div>`).join('');
+    $('#edit-err').textContent = '';
+    $('#dlg-edit').showModal();
+    input('client').focus();
+  }
+  let lastAutoEnd = '';
+  $('#f-start').addEventListener('change', () => {
+    const end = input('end');
+    if (!end.value || end.value === lastAutoEnd || end.value <= input('start').value) { end.value = oneYearFrom(input('start').value); lastAutoEnd = end.value; }
+  });
+  $('#form-edit').addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = {};
+    F.forEach(k => { const v = input(k).value.trim(); data[k] = ['visits', 'visitsDone', 'amount'].includes(k) ? (v === '' ? null : Math.max(0, +v)) : v; });
+    const err = validate(data); if (err) { $('#edit-err').textContent = err; return; }
+    const r = state.editing;
+    const doc = r ? { ...strip(r), ...data, example: false, updatedAt: new Date().toISOString() } : { ...data, history: [], createdAt: new Date().toISOString() };
+    try {
+      $('#edit-save').disabled = true;
+      const ref = r ? col.doc(r.id) : col.doc();
+      await ref.set(doc);
+      if (!r && state.fromQuote) { try { await qcol.doc(state.fromQuote).update({ contractId: ref.id }); } catch (er) {} state.fromQuote = null; }
+      $('#dlg-edit').close(); toast(r ? 'Changes saved' : `${data.client} added`);
+    } catch (er) { $('#edit-err').textContent = writeErr(er); }
+    finally { $('#edit-save').disabled = false; }
+  });
+  function validate(d) {
+    if (!d.client) return 'Enter the client name.';
+    if (!parseISO(d.start) || !parseISO(d.end)) return 'Enter both a start date and an end date.';
+    if (d.end < d.start) return 'The end date is before the start date.';
+    if (d.visits != null && d.visitsDone != null && d.visitsDone > d.visits) return 'Visits done is more than visits per year.';
+    return '';
+  }
+  const strip = r => { const o = { ...r }; delete o.id; return o; };
+  function writeErr(er) {
+    if (er?.code === 'invalid_argument') { state.canWrite = false; render(); return 'You don’t have permission to change contracts here.'; }
+    if (er?.code === 'quota_exceeded') return 'The tracker is full. Delete old contracts to make room.';
+    return 'Couldn’t save. Check your connection and try again.';
+  }
+
+  // ---------- renew ----------
+  function openRenew(r) {
+    state.renewing = r;
+    $('#renew-who').textContent = `${r.client} · current period ${fmt(r.start)} → ${fmt(r.end)}`;
+    const ns = r.end ? addDays(r.end, 1) : toISO(today());
+    $('#r-start').value = ns; $('#r-end').value = oneYearFrom(ns); $('#r-amount').value = r.amount ?? ''; $('#r-contract').value = '';
+    $('#renew-err').textContent = '';
+    $('#dlg-renew').showModal();
+  }
+  $('#r-start').addEventListener('change', () => { $('#r-end').value = oneYearFrom($('#r-start').value); });
+  $('#form-renew').addEventListener('submit', async e => {
+    e.preventDefault();
+    const r = state.renewing, start = $('#r-start').value, end = $('#r-end').value;
+    if (!parseISO(start) || !parseISO(end) || end < start) { $('#renew-err').textContent = 'Enter a valid new start and end date.'; return; }
+    const history = [...(r.history || []), { start: r.start, end: r.end, amount: r.amount ?? null, contractNo: r.contractNo || '', visitsDone: r.visitsDone ?? null }];
+    const amt = $('#r-amount').value.trim();
+    const doc = { ...strip(r), start, end, amount: amt === '' ? null : +amt, contractNo: $('#r-contract').value.trim() || r.contractNo || '', visitsDone: 0, history, example: r.example || false, renewedAt: new Date().toISOString() };
+    try { await col.doc(r.id).set(doc); $('#dlg-renew').close(); toast(`${r.client} renewed until ${fmt(end)}`); }
+    catch (er) { $('#renew-err').textContent = writeErr(er); }
+  });
+
+  // ---------- delete / visits / examples ----------
+  $('#del-yes').addEventListener('click', async () => {
+    const d = state.deleting; if (!d) return;
+    const isQ = d.kind !== 'contract';
+    try {
+      await ({ quote: qcol, invoice: icol, contract: col })[d.kind].doc(d.r.id).delete();
+      if (d.kind === 'invoice' && d.r.fromQuoteId && state.quotes.some(q => q.id === d.r.fromQuoteId)) { try { await qcol.doc(d.r.fromQuoteId).update({ invoiceId: null, invoiceNo: null }); } catch (er) {} } $('#dlg-del').close(); toast(`${isQ ? d.r.quoteNo : d.r.client} deleted`); }
+    catch (er) { $('#dlg-del').close(); toast(writeErr(er)); }
+  });
+  async function logVisit(r) {
+    try { await col.doc(r.id).update({ visitsDone: (+r.visitsDone || 0) + 1 }); toast(`PM visit logged for ${r.client}`); }
+    catch (er) { toast(writeErr(er)); }
+  }
+  async function clearExamples() {
+    const ex = state.rows.filter(r => r.example);
+    const exq = state.quotes.filter(q => q.example);
+    const exi = state.invoices.filter(i => i.example);
+    try { for (const r of ex) await col.doc(r.id).delete(); for (const q of exq) await qcol.doc(q.id).delete(); for (const i of exi) await icol.doc(i.id).delete(); toast('Examples removed'); }
+    catch (er) { toast(writeErr(er)); }
+  }
+
+  // ---------- CSV ----------
+  const HEAD = ['Client', 'Site', 'Contact', 'Phone', 'Email', 'Contract No', 'Equipment', 'AMC Type', 'Start Date', 'End Date', 'Amount', 'Visits', 'Visits Done', 'Notes', 'Days Left', 'Status'];
+  const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  async function save(filename, data) {
+    if (!downloads) { toast('Downloads aren’t available in this view.'); return; }
+    try { await downloads.save({ filename, data }); }
+    catch (er) { if (er?.code !== 'declined') toast('Couldn’t prepare the file.'); }
+  }
+  function exportCSV() {
+    const lbl = { active: 'Active', due: 'Renewal due', expired: 'Expired' };
+    const lines = [HEAD.join(',')].concat(state.rows.slice().sort((a, b) => (daysLeft(a) ?? 1e9) - (daysLeft(b) ?? 1e9)).map(r =>
+      [r.client, r.site, r.contact, r.phone, r.email, r.contractNo, r.equipment, r.amcType, r.start, r.end, r.amount, r.visits, r.visitsDone, r.notes, daysLeft(r), lbl[statusOf(r)]].map(csvCell).join(',')));
+    save(`AMC-contracts-${toISO(today())}.csv`, '﻿' + lines.join('\r\n'));
+  }
+  $('#btn-template').addEventListener('click', () => save('AMC-import-template.csv', '﻿' + HEAD.slice(0, 14).join(',') + '\r\n'));
+
+  function openImport() { if (!state.canWrite) return; $('#import-err').textContent = ''; $('#dlg-import').showModal(); }
+  const drop = $('#drop');
+  ['dragover', 'dragenter'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) importFile(f); });
+  $('#file').addEventListener('change', e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
+
+  function parseCSV(text) {
+    const out = []; let row = [], cell = '', q = false;
+    text = text.replace(/^﻿/, '');
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+      else if (c === '"') q = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); out.push(row); row = []; cell = ''; }
+      else cell += c;
+    }
+    if (cell || row.length) { row.push(cell); out.push(row); }
+    return out.filter(r => r.some(c => c.trim()));
+  }
+  function anyDate(s) {
+    s = (s || '').trim(); if (!s) return '';
+    let m;
+    if ((m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s))) return toISO(new Date(+m[1], m[2] - 1, +m[3]));
+    if ((m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/.exec(s))) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return toISO(new Date(y, m[2] - 1, +m[1])); }
+    if ((m = /^(\d{1,2})[\s-]([A-Za-z]{3})[A-Za-z]*[\s-,]+(\d{4})$/.exec(s))) { const mi = MON.findIndex(x => x.toLowerCase() === m[2].toLowerCase()); if (mi >= 0) return toISO(new Date(+m[3], mi, +m[1])); }
+    return '';
+  }
+  const ALIAS = {
+    client: ['client', 'client name', 'customer', 'company', 'customer name'], site: ['site', 'location', 'address', 'city'],
+    contact: ['contact', 'contact person', 'contact name'], phone: ['phone', 'mobile', 'contact no', 'phone no'], email: ['email', 'e-mail', 'mail'],
+    contractNo: ['contract no', 'contract', 'amc no', 'contract number', 'amc number', 'po no'], equipment: ['equipment', 'product', 'system', 'systems', 'equipment covered', 'asset'],
+    amcType: ['amc type', 'type'], start: ['start date', 'start', 'from', 'amc start'], end: ['end date', 'end', 'to', 'expiry', 'expiry date', 'valid till', 'amc end'],
+    amount: ['amount', 'value', 'amc amount', 'amc value', 'price'], visits: ['visits', 'pm visits', 'visits per year'], visitsDone: ['visits done', 'completed visits'], notes: ['notes', 'remarks', 'comments']
+  };
+  async function importFile(file) {
+    const err = $('#import-err'); err.textContent = '';
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) { err.textContent = 'The file has no data rows under the header.'; return; }
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const idx = {}; Object.entries(ALIAS).forEach(([k, al]) => { const i = head.findIndex(h => al.includes(h)); if (i >= 0) idx[k] = i; });
+    if (idx.client == null || idx.start == null || idx.end == null) { err.textContent = 'Couldn’t find Client, Start Date and End Date columns. Check the header row.'; return; }
+    let ok = 0, skipped = 0;
+    const now = new Date().toISOString();
+    for (const r of rows.slice(1)) {
+      const g = k => idx[k] == null ? '' : (r[idx[k]] || '').trim();
+      const num = k => { const v = g(k).replace(/[₹,\s]/g, ''); return v === '' || isNaN(+v) ? null : +v; };
+      const d = { client: g('client'), site: g('site'), contact: g('contact'), phone: g('phone'), email: g('email'), contractNo: g('contractNo'), equipment: g('equipment'),
+        amcType: g('amcType') || 'Comprehensive', start: anyDate(g('start')), end: anyDate(g('end')), amount: num('amount'), visits: num('visits'), visitsDone: num('visitsDone'), notes: g('notes'), history: [], createdAt: now };
+      if (validate(d)) { skipped++; continue; }
+      try { await col.doc().set(d); ok++; } catch (er) { err.textContent = writeErr(er); break; }
+    }
+    if (ok) { $('#dlg-import').close(); toast(`Imported ${ok} contract${ok > 1 ? 's' : ''}${skipped ? `, skipped ${skipped} row${skipped > 1 ? 's' : ''} with missing client or dates` : ''}`); }
+    else if (!err.textContent) err.textContent = `No rows imported. ${skipped} row${skipped > 1 ? 's were' : ' was'} missing a client name or valid dates.`;
+  }
+
+  // ---------- quotations ----------
+  const DEFAULT_TERMS = 'Prices are valid until the date shown above.\nGST is charged extra as applicable.\nPayment: 100% in advance on confirmation of the AMC.\nThe AMC covers preventive maintenance visits as per the agreed schedule and breakdown support during business hours.\nSpare parts and consumables are charged extra unless the AMC is comprehensive.';
+  const QSTAT = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected', expired: 'Expired', invoiced: 'Invoiced' };
+  const DEFAULT_ITERMS = 'Payment is due by the due date shown above.\nPlease quote the invoice number with your payment.\nInterest at 18% per annum may be charged on overdue amounts.\nSubject to local jurisdiction.';
+  const co = () => ({ name: 'IOTIQ Innovations', address: '', gstin: '', phone: '', email: '', web: '', bank: '', prefix: 'QT', terms: DEFAULT_TERMS, invPrefix: 'INV', invTerms: DEFAULT_ITERMS, ...state.co });
+  const ISTAT = { unpaid: 'Unpaid', partial: 'Part paid', paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled' };
+  const iStatus = i => {
+    if (i.status === 'cancelled') return 'cancelled';
+    const t = calc(i).total, p = +i.paid || 0;
+    if (t > 0 && p >= t - 0.005) return 'paid';
+    if (i.validUntil && i.validUntil < toISO(today())) return 'overdue';
+    return p > 0 ? 'partial' : 'unpaid';
+  };
+  const money = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function calc(q) {
+    const sub = (q.items || []).reduce((s, it) => s + (+it.qty || 0) * (+it.rate || 0), 0);
+    const disc = Math.min(sub, +q.discount || 0), taxable = sub - disc;
+    const rate = q.taxMode === 'none' ? 0 : (+q.taxRate || 0);
+    const tax = Math.round(taxable * rate) / 100;
+    return { sub, disc, taxable, rate, tax, total: Math.round((taxable + tax) * 100) / 100 };
+  }
+  const qStatus = q => q.invoiceId ? 'invoiced' : (q.status === 'draft' || q.status === 'sent' || !q.status) && q.validUntil && q.validUntil < toISO(today()) ? 'expired' : (q.status || 'draft');
+  function words(n) {
+    n = Math.floor(n); if (!n) return 'Zero';
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const two = x => x < 20 ? a[x] : b[Math.floor(x / 10)] + (x % 10 ? ' ' + a[x % 10] : '');
+    const three = x => x >= 100 ? a[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' + two(x % 100) : '') : two(x);
+    const out = [], cr = Math.floor(n / 1e7); n %= 1e7; const l = Math.floor(n / 1e5); n %= 1e5; const th = Math.floor(n / 1000); n %= 1000;
+    if (cr) out.push((cr >= 1000 ? words(cr) : three(cr)) + ' Crore'); if (l) out.push(two(l) + ' Lakh'); if (th) out.push(two(th) + ' Thousand'); if (n) out.push(three(n));
+    return out.join(' ');
+  }
+  const rupeesInWords = n => { const p = Math.round((n - Math.floor(n)) * 100); return `Rupees ${words(n)}${p ? ' and ' + words(p) + ' Paise' : ''} Only`; };
+
+  function showView(v) {
+    state.view = v;
+    $('#view-contracts').hidden = v !== 'contracts';
+    $('#view-quotes').hidden = v !== 'quotations';
+    $('#acts-contracts').hidden = v !== 'contracts';
+    $('#acts-quotes').hidden = v !== 'quotations';
+    $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === v)));
+  }
+
+  function renderQuotes() {
+    const qs = state.quotes;
+    const counts = { all: qs.length, draft: 0, sent: 0, accepted: 0, rejected: 0, expired: 0, invoiced: 0 };
+    qs.forEach(q => { counts[qStatus(q)]++; });
+    let billed = 0, due = 0, over = 0, nInv = 0, nOver = 0;
+    state.invoices.forEach(i => {
+      const s = iStatus(i); if (s === 'cancelled') return;
+      const t = calc(i).total, bal = Math.max(0, t - (+i.paid || 0));
+      nInv++; billed += t; due += bal; if (s === 'overdue') { over += bal; nOver++; }
+    });
+    $('#qs-total').textContent = counts.all; $('#qs-sent').textContent = counts.sent;
+    $('#qs-billed').textContent = inr(billed); $('#qs-billed-sub').textContent = `${nInv} invoice${nInv === 1 ? '' : 's'}`;
+    $('#qs-due').textContent = inr(due); $('#qs-due-sub').textContent = nOver ? `${inr(over)} overdue on ${nOver} invoice${nOver === 1 ? '' : 's'}` : 'nothing overdue';
+    $('#qchips').innerHTML = [['all', 'All'], ['draft', 'Draft'], ['sent', 'Sent'], ['accepted', 'Accepted'], ['invoiced', 'Invoiced'], ['rejected', 'Rejected'], ['expired', 'Expired']]
+      .map(([k, l]) => `<button type="button" class="chip" data-qf="${k}" aria-pressed="${state.qfilter === k}">${l}<span class="n">${counts[k]}</span></button>`).join('');
+    const box = $('#qrows');
+    if (!state.qready) return;
+    if (!qs.length) { box.innerHTML = `<div class="empty"><strong>No quotations yet</strong><span>Create a quotation for a new client, or click Quote on any AMC contract to prepare a renewal quote.</span>${state.canWrite ? '<div class="actions"><button class="btn primary" type="button" data-act="qnew">+ New quotation</button></div>' : ''}</div>`; return; }
+    const term = state.qq.trim().toLowerCase();
+    let list = qs.filter(q => state.qfilter === 'all' || qStatus(q) === state.qfilter);
+    if (term) list = list.filter(q => [q.quoteNo, q.invoiceNo, q.client, q.subject, q.contact].join(' ').toLowerCase().includes(term));
+    list.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.quoteNo || '').localeCompare(a.quoteNo || ''));
+    if (!list.length) { box.innerHTML = '<div class="empty"><strong>No quotations match</strong><span>Try a different search or status filter.</span></div>'; return; }
+    const cls = { draft: 'mute', sent: 'warn', accepted: 'ok', rejected: 'bad', expired: 'bad', invoiced: 'ok' };
+    const icls = { unpaid: 'warn', partial: 'warn', paid: 'ok', overdue: 'bad', cancelled: 'mute' };
+    box.innerHTML = list.map(q => {
+      const s = qStatus(q), t = calc(q), w = state.canWrite;
+      const inv = q.invoiceId && state.invoices.find(x => x.id === q.invoiceId);
+      const conv = !q.contractId && (s === 'accepted' || s === 'invoiced') && w ? '<button class="btn sm" type="button" data-act="qconv" title="Add this client as an AMC contract">Create AMC</button>' : '';
+      if (inv) {
+        const is = iStatus(inv), it = calc(inv), bal = Math.max(0, it.total - (+inv.paid || 0));
+        return `<div class="row q" data-qid="${esc(q.id)}">
+        <div class="cell c-client"><div class="client">${esc(q.client)}${q.example ? '<span class="tag">Example</span>' : ''}</div><div class="subtle">${esc(q.subject || '—')}</div></div>
+        <div class="cell c-period period"><div>${esc(inv.quoteNo)} <span class="subtle">from ${esc(q.quoteNo || '—')}</span></div><div class="subtle">Invoiced ${fmt(inv.date)} · due ${fmt(inv.validUntil)}</div></div>
+        <div class="cell c-amount amount"><span class="lbl-m">Total</span>${inr(it.total)}${is === 'partial' || (is === 'overdue' && +inv.paid) ? `<div class="subtle">balance ${inr(bal)}</div>` : ''}</div>
+        <div class="cell c-status"><span class="pill ${icls[is]}">${ISTAT[is]}</span><div class="subtle" style="margin-top:4px">Invoice</div></div>
+        <div class="cell c-acts rowacts"><button class="btn sm primary" type="button" data-act="ipdf">Invoice PDF</button>${w && is !== 'paid' && is !== 'cancelled' ? '<button class="btn sm" type="button" data-act="ipaid" title="Record full payment">Mark paid</button>' : ''}${w ? '<button class="btn sm" type="button" data-act="iedit" title="Change PO, place of supply, amount received or items">Edit invoice</button>' : ''}<button class="btn sm" type="button" data-act="qpdf">Quote PDF</button>${conv}${w ? '<button class="btn sm danger" type="button" data-act="idel" title="Delete the invoice and return this to a quotation">Delete invoice</button>' : ''}</div>
+      </div>`;
+      }
+      return `<div class="row q" data-qid="${esc(q.id)}">
+        <div class="cell c-client"><div class="client">${esc(q.client)}${q.example ? '<span class="tag">Example</span>' : ''}</div><div class="subtle">${esc(q.subject || '—')}</div></div>
+        <div class="cell c-period period"><div>${esc(q.quoteNo || '—')}</div><div class="subtle">${fmt(q.date)} · valid till ${fmt(q.validUntil)}</div></div>
+        <div class="cell c-amount amount"><span class="lbl-m">Total</span>${inr(t.total)}</div>
+        <div class="cell c-status"><span class="pill ${cls[s] || 'mute'}">${QSTAT[s] || 'Draft'}</span></div>
+        <div class="cell c-acts rowacts">${w && s !== 'rejected' && s !== 'invoiced' ? '<button class="btn sm primary" type="button" data-act="qinv" title="Turn this quotation into an invoice">Convert to invoice</button>' : ''}<button class="btn sm" type="button" data-act="qpdf">PDF</button>${w ? `${conv}${s !== 'invoiced' ? '<button class="btn sm" type="button" data-act="qedit">Edit</button>' : ''}<button class="btn sm" type="button" data-act="qdup" title="Start a new quotation from this one">Copy</button><button class="btn sm danger" type="button" data-act="qdel">Delete</button>` : ''}</div>
+      </div>`;
+    }).join('');
+  }
+  $('#qq').addEventListener('input', e => { state.qq = e.target.value; renderQuotes(); });
+  $('#btn-qnew').addEventListener('click', () => openQuote(null, 'new'));
+  $('#btn-company').addEventListener('click', openCompany);
+  async function markPaid(i) {
+    try { await icol.doc(i.id).update({ paid: calc(i).total, paidOn: toISO(today()) }); toast(`${i.quoteNo} marked as paid`); }
+    catch (er) { toast(writeErr(er)); }
+  }
+  let converting = false;
+  async function invoiceFromQuote(q) {
+    if (converting || q.invoiceId || !state.canWrite) return;
+    converting = true;
+    const c = strip(q);
+    ['contractId', 'forContract', 'status', 'notes', 'terms', 'validUntil', 'date', 'quoteNo', 'total', 'createdAt', 'updatedAt', 'invoiceId', 'invoiceNo'].forEach(k => delete c[k]);
+    const no = nextNo('invoice'), d = toISO(today());
+    const inv = { ...c, quoteNo: no, date: d, validUntil: addDays(d, 15), status: 'issued', paid: 0, po: '', pos: '', terms: co().invTerms,
+      notes: `Converted from quotation ${q.quoteNo}.`, fromQuote: q.quoteNo, fromQuoteId: q.id, example: !!q.example, total: calc(q).total, createdAt: new Date().toISOString() };
+    try {
+      const ref = icol.doc();
+      await ref.set(inv);
+      await qcol.doc(q.id).update({ invoiceId: ref.id, invoiceNo: no, status: 'accepted' });
+      toast(`${q.quoteNo} converted to invoice ${no}`);
+    } catch (er) { toast(writeErr(er)); }
+    finally { converting = false; }
+  }
+
+  // editor
+  const Q = { quoteNo: 'q-no', date: 'q-date', validUntil: 'q-valid', status: 'q-status', client: 'q-client', contact: 'q-contact', phone: 'q-phone', email: 'q-email', gstin: 'q-gstin', address: 'q-addr', subject: 'q-subject', taxMode: 'q-taxmode', taxRate: 'q-taxrate', discount: 'q-discount', terms: 'q-terms', notes: 'q-notes', po: 'q-po', pos: 'q-pos', paid: 'q-paid' };
+  function nextNo(kind) {
+    const inv = kind === 'invoice', c = co();
+    const p = ((inv ? c.invPrefix : c.prefix) || (inv ? 'INV' : 'QT')).trim(), y = today().getFullYear();
+    const re = new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-' + y + '-(\\d+)$');
+    let max = 0; (inv ? state.invoices : state.quotes).forEach(q => { const m = re.exec(q.quoteNo || ''); if (m) max = Math.max(max, +m[1]); });
+    return `${p}-${y}-${String(max + 1).padStart(3, '0')}`;
+  }
+  function openQuote(q, mode, kind = 'quote') {
+    if (!state.canWrite) return;
+    const inv = kind === 'invoice', c = co();
+    state.kind = kind;
+    state.qediting = mode === 'edit' ? q : null; state.qfromContract = null;
+    $('#q-status').innerHTML = (inv ? [['issued', 'Issued'], ['cancelled', 'Cancelled']] : [['draft', 'Draft'], ['sent', 'Sent'], ['accepted', 'Accepted'], ['rejected', 'Rejected']])
+      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    $('#lbl-no').textContent = inv ? 'Invoice no.' : 'Quotation no.';
+    $('#lbl-valid').textContent = inv ? 'Due date' : 'Valid till';
+    $('#inv-only').hidden = !inv;
+    $('#q-save').textContent = inv ? 'Save invoice' : 'Save quotation';
+    const base = { status: inv ? 'issued' : 'draft', taxMode: 'cgst_sgst', taxRate: 18, discount: '', terms: inv ? c.invTerms : c.terms, items: [], ...(q || {}) };
+    if (mode !== 'edit') { base.quoteNo = nextNo(kind); base.date = toISO(today()); base.validUntil = addDays(toISO(today()), inv ? 15 : 30); base.status = inv ? 'issued' : 'draft'; if (inv) base.paid = ''; }
+    Object.entries(Q).forEach(([k, id]) => { $('#' + id).value = base[k] ?? ''; });
+    $('#q-items').innerHTML = '';
+    (base.items.length ? base.items : [{}]).forEach(addItem);
+    $('#qedit-title').textContent = mode === 'edit' ? `Edit ${base.quoteNo}` : inv ? 'New invoice' : 'New quotation';
+    $('#q-err').textContent = '';
+    recalc();
+    $('#dlg-quote').showModal();
+  }
+  function addItem(it = {}) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><textarea class="i-desc" rows="2" aria-label="Description"></textarea></td><td><input class="i-hsn mono" aria-label="HSN/SAC"></td><td><input class="i-qty" type="number" min="0" step="any" aria-label="Quantity"></td><td><input class="i-rate" type="number" min="0" step="any" aria-label="Rate"></td><td class="i-amt num"></td><td><button type="button" class="x i-del" aria-label="Remove line">×</button></td>';
+    tr.querySelector('.i-desc').value = it.desc || '';
+    tr.querySelector('.i-hsn').value = it.hsn || '';
+    tr.querySelector('.i-qty').value = it.qty ?? 1;
+    tr.querySelector('.i-rate').value = it.rate ?? '';
+    $('#q-items').appendChild(tr);
+  }
+  const readItems = () => $$('#q-items tr').map(tr => {
+    const n = c => { const v = tr.querySelector(c).value.trim(); return v === '' ? null : Math.max(0, +v); };
+    return { desc: tr.querySelector('.i-desc').value.trim(), hsn: tr.querySelector('.i-hsn').value.trim(), qty: n('.i-qty'), rate: n('.i-rate') };
+  });
+  function readQuote() {
+    const d = {};
+    Object.entries(Q).forEach(([k, id]) => { d[k] = $('#' + id).value.trim(); });
+    d.taxRate = +d.taxRate || 0;
+    d.discount = d.discount === '' ? 0 : Math.max(0, +d.discount || 0);
+    d.items = readItems().filter(it => it.desc || it.rate);
+    if (state.kind === 'invoice') d.paid = d.paid === '' ? 0 : Math.max(0, +d.paid || 0);
+    else { delete d.po; delete d.pos; delete d.paid; }
+    return d;
+  }
+  function recalc() {
+    $$('#q-items tr').forEach(tr => { tr.querySelector('.i-amt').textContent = money((+tr.querySelector('.i-qty').value || 0) * (+tr.querySelector('.i-rate').value || 0)); });
+    const q = readQuote(), t = calc(q), half = money(t.tax / 2);
+    $('#q-taxrate').disabled = q.taxMode === 'none';
+    $('#q-totals').innerHTML = `<div><span>Subtotal</span><span class="num">₹${money(t.sub)}</span></div>`
+      + (t.disc ? `<div><span>Discount</span><span class="num">− ₹${money(t.disc)}</span></div>` : '')
+      + (q.taxMode === 'cgst_sgst' ? `<div><span>CGST ${t.rate / 2}%</span><span class="num">₹${half}</span></div><div><span>SGST ${t.rate / 2}%</span><span class="num">₹${half}</span></div>`
+        : q.taxMode === 'igst' ? `<div><span>IGST ${t.rate}%</span><span class="num">₹${money(t.tax)}</span></div>` : '')
+      + `<div class="grand"><span>Total</span><span class="num">₹${money(t.total)}</span></div><span class="words">${esc(rupeesInWords(t.total))}</span>`;
+    if (state.kind === 'invoice' && q.paid) $('#q-totals').insertAdjacentHTML('beforeend', `<div><span>Received</span><span class="num">₹${money(q.paid)}</span></div><div><span>Balance due</span><span class="num">₹${money(Math.max(0, t.total - q.paid))}</span></div>`);
+  }
+  $('#q-items').addEventListener('input', recalc);
+  $('#q-items').addEventListener('click', e => { if (e.target.closest('.i-del')) { e.target.closest('tr').remove(); if (!$('#q-items').children.length) addItem(); recalc(); } });
+  $('#q-additem').addEventListener('click', () => { addItem(); recalc(); $('#q-items tr:last-child .i-desc').focus(); });
+  ['q-taxmode', 'q-taxrate', 'q-discount', 'q-paid'].forEach(id => { $('#' + id).addEventListener('input', recalc); $('#' + id).addEventListener('change', recalc); });
+  $('#q-client').addEventListener('change', () => {
+    const n = $('#q-client').value.trim().toLowerCase();
+    const c = state.rows.find(r => (r.client || '').trim().toLowerCase() === n); if (!c) return;
+    [['q-contact', 'contact'], ['q-phone', 'phone'], ['q-email', 'email'], ['q-addr', 'site']].forEach(([id, k]) => { if (!$('#' + id).value && c[k]) $('#' + id).value = c[k]; });
+  });
+  function quoteErr(d) {
+    if (!d.client) return 'Enter the client name.';
+    if (!parseISO(d.date)) return 'Enter the quotation date.';
+    if (!d.items.length) return 'Add at least one line item with a description.';
+    return '';
+  }
+  $('#form-quote').addEventListener('submit', async e => {
+    e.preventDefault();
+    const d = readQuote(), err = quoteErr(d);
+    if (err) { $('#q-err').textContent = err; return; }
+    d.total = calc(d).total;
+    const r = state.qediting, now = new Date().toISOString();
+    const doc = r ? { ...strip(r), ...d, example: false, updatedAt: now } : { ...d, createdAt: now };
+    if (!r && state.qfromContract) doc.forContract = state.qfromContract;
+    try {
+      $('#q-save').disabled = true;
+      const cc = state.kind === 'invoice' ? icol : qcol;
+      await (r ? cc.doc(r.id) : cc.doc()).set(doc);
+      $('#dlg-quote').close(); showView('quotations'); toast(`${d.quoteNo} saved`);
+    } catch (er) { $('#q-err').textContent = writeErr(er); }
+    finally { $('#q-save').disabled = false; }
+  });
+  $('#q-pdf').addEventListener('click', () => {
+    const d = readQuote(), err = quoteErr(d);
+    if (err) { $('#q-err').textContent = err; return; }
+    $('#q-err').textContent = '';
+    quotePdf(d, state.kind);
+  });
+
+  function quoteFromContract(r) {
+    const ns = r.end ? addDays(r.end, 1) : toISO(today()), ne = oneYearFrom(ns);
+    openQuote({
+      client: r.client, contact: r.contact, phone: r.phone, email: r.email, address: r.site,
+      subject: `Renewal of Annual Maintenance Contract${r.contractNo ? ' (' + r.contractNo + ')' : ''}`,
+      items: [{ desc: `${r.amcType || 'Comprehensive'} AMC for ${r.equipment || 'equipment as per existing contract'}\nPeriod: ${fmt(ns)} to ${fmt(ne)}${r.visits ? `, ${r.visits} preventive maintenance visits` : ''}`, hsn: '', qty: 1, rate: r.amount ?? '' }]
+    }, 'new');
+    state.qfromContract = r.id;
+  }
+  function amcFromQuote(q) {
+    showView('contracts');
+    openEdit(null);
+    const t = calc(q);
+    input('client').value = q.client || ''; input('contact').value = q.contact || ''; input('phone').value = q.phone || '';
+    input('email').value = q.email || ''; input('site').value = (q.address || '').split('\n')[0];
+    input('equipment').value = (q.items || []).map(i => (i.desc || '').split('\n')[0]).filter(Boolean).join('; ').slice(0, 200);
+    input('amount').value = Math.round(t.taxable);
+    input('notes').value = `Created from quotation ${q.quoteNo}.`;
+    state.fromQuote = q.id;
+  }
+
+  // company details
+  const C = { name: 'c-name', address: 'c-addr', gstin: 'c-gstin', phone: 'c-phone', email: 'c-email', web: 'c-web', bank: 'c-bank', prefix: 'c-prefix', terms: 'c-terms', invPrefix: 'c-iprefix', invTerms: 'c-iterms' };
+  function openCompany() {
+    if (!state.canWrite || !db) return;
+    const c = co(); Object.entries(C).forEach(([k, id]) => { $('#' + id).value = c[k] ?? ''; });
+    $('#c-err').textContent = ''; $('#dlg-company').showModal();
+  }
+  $('#form-company').addEventListener('submit', async e => {
+    e.preventDefault();
+    const d = {}; Object.entries(C).forEach(([k, id]) => { d[k] = $('#' + id).value.trim(); });
+    if (!d.name) { $('#c-err').textContent = 'Enter your company name.'; return; }
+    d.prefix = (d.prefix || 'QT').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'QT';
+    d.invPrefix = (d.invPrefix || 'INV').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'INV';
+    try { await db.doc('settings/company').set(d); $('#dlg-company').close(); toast('Company details saved'); }
+    catch (er) { $('#c-err').textContent = writeErr(er); }
+  });
+
+  // PDF
+  async function quotePdf(q, kind = 'quote') {
+    const isInv = kind === 'invoice';
+    const J = window.jspdf;
+    if (!J || !J.jsPDF) { toast('The PDF maker didn’t load. Reload the page and try again.'); return; }
+    const c = co(), t = calc(q);
+    const doc = new J.jsPDF({ unit: 'pt', format: 'a4' });
+    if (typeof doc.autoTable !== 'function') { toast('The PDF maker didn’t load. Reload the page and try again.'); return; }
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40;
+    const GREEN = [17, 39, 29], GOLD = [195, 156, 103], CREAM = [245, 241, 229], INK = [17, 39, 29], MUTED = [90, 106, 97], LINE = [227, 219, 200];
+    let y = 54;
+    const ensure = h => { if (y + h > H - 50) { doc.addPage(); y = 54; } };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...INK); doc.text(c.name || '', M, y);
+    doc.setFontSize(20); doc.setTextColor(...GOLD); doc.text(isInv ? (q.taxMode === 'none' ? 'INVOICE' : 'TAX INVOICE') : 'QUOTATION', W - M, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+    let ly = y + 16;
+    [...(c.address ? doc.splitTextToSize(c.address, 270) : []), c.gstin ? 'GSTIN: ' + c.gstin : '', [c.phone, c.email].filter(Boolean).join('  |  '), c.web].filter(Boolean)
+      .forEach(l => { doc.text(l, M, ly); ly += 12; });
+    let ry = y + 20;
+    (isInv
+      ? [['Invoice No.', q.quoteNo], ['Invoice date', fmt(q.date)], ['Due date', fmt(q.validUntil)], ...(q.po ? [['PO / Ref.', q.po]] : []), ...(q.pos ? [['Place of supply', q.pos]] : [])]
+      : [['Quotation No.', q.quoteNo], ['Date', fmt(q.date)], ['Valid till', fmt(q.validUntil)]]).forEach(([k, v]) => {
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED); doc.text(k, W - M - 160, ry);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(v || '-', W - M, ry, { align: 'right' }); ry += 13;
+    });
+    y = Math.max(ly, ry) + 6;
+    doc.setDrawColor(...GOLD); doc.setLineWidth(1.5); doc.line(M, y, W - M, y); y += 22;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...MUTED); doc.text(isInv ? 'BILL TO' : 'TO', M, y); y += 14;
+    doc.setFontSize(11); doc.setTextColor(...INK); doc.text(q.client || '', M, y); y += 14;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+    [q.contact ? 'Kind attn: ' + q.contact : '', ...(q.address ? doc.splitTextToSize(q.address, 320) : []), [q.phone, q.email].filter(Boolean).join('  |  '), q.gstin ? 'GSTIN: ' + q.gstin : '']
+      .filter(Boolean).forEach(l => { doc.text(l, M, y); y += 12; });
+    if (q.subject) {
+      y += 8; const sl = doc.splitTextToSize('Subject: ' + q.subject, W - 2 * M);
+      doc.setFont('helvetica', 'bold'); doc.text(sl, M, y); y += 12 * sl.length;
+    }
+    doc.autoTable({
+      startY: y + 6, margin: { left: M, right: M }, theme: 'grid',
+      head: [['#', 'Description', 'HSN/SAC', 'Qty', 'Rate (Rs.)', 'Amount (Rs.)']],
+      body: (q.items || []).map((it, i) => [i + 1, it.desc || '', it.hsn || '', String(+it.qty || 0), money(it.rate), money((+it.qty || 0) * (+it.rate || 0))]),
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+      headStyles: { fillColor: GREEN, textColor: CREAM, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 24, halign: 'center' }, 2: { cellWidth: 62 }, 3: { cellWidth: 40, halign: 'right' }, 4: { cellWidth: 80, halign: 'right' }, 5: { cellWidth: 88, halign: 'right' } }
+    });
+    y = doc.lastAutoTable.finalY + 18;
+    const tot = [['Subtotal', money(t.sub)]];
+    if (t.disc) tot.push(['Discount', '- ' + money(t.disc)]);
+    if (q.taxMode === 'cgst_sgst') tot.push([`CGST @ ${t.rate / 2}%`, money(t.tax / 2)], [`SGST @ ${t.rate / 2}%`, money(t.tax / 2)]);
+    else if (q.taxMode === 'igst') tot.push([`IGST @ ${t.rate}%`, money(t.tax)]);
+    ensure(tot.length * 14 + 50);
+    doc.setFontSize(9.5);
+    tot.forEach(([k, v]) => { doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED); doc.text(k, W - M - 210, y); doc.setTextColor(...INK); doc.text(v, W - M, y, { align: 'right' }); y += 14; });
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.5); doc.line(W - M - 210, y - 5, W - M, y - 5); y += 10;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.text('Total (Rs.)', W - M - 210, y); doc.text(money(t.total), W - M, y, { align: 'right' }); y += 16;
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+    doc.splitTextToSize(rupeesInWords(t.total), W - 2 * M).forEach(l => { doc.text(l, W - M, y, { align: 'right' }); y += 12; });
+    if (isInv && +q.paid > 0) {
+      y += 8; doc.setFontSize(9.5);
+      [['Amount received', money(Math.min(+q.paid, t.total))], ['Balance due', money(Math.max(0, t.total - +q.paid))]].forEach(([k, v], n) => {
+        doc.setFont('helvetica', n ? 'bold' : 'normal'); doc.setTextColor(...(n ? INK : MUTED)); doc.text(k, W - M - 210, y); doc.setTextColor(...INK); doc.text(v, W - M, y, { align: 'right' }); y += 14;
+      });
+    }
+    y += 14;
+    const block = (title, text) => {
+      if (!text) return;
+      ensure(32); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(title, M, y); y += 13;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+      doc.splitTextToSize(text, W - 2 * M).forEach(l => { ensure(12); doc.text(l, M, y); y += 12; }); y += 10;
+    };
+    block('Terms & Conditions', (q.terms || '').split('\n').map(s => s.trim()).filter(Boolean).map((s, i) => `${i + 1}. ${s.replace(/^\d+[.)]\s*/, '')}`).join('\n'));
+    block('Bank details', c.bank);
+    ensure(70); y += 12;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text('For ' + (c.name || ''), W - M, y, { align: 'right' }); y += 42;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED); doc.text('Authorised Signatory', W - M, y, { align: 'right' });
+    if (isInv) { doc.setFontSize(8); doc.text('This is a computer-generated invoice.', M, H - 30); }
+    await save(`${(q.quoteNo || 'Quotation').replace(/[^\w.-]+/g, '-')}-${(q.client || '').replace(/[^\w]+/g, '-').slice(0, 40)}.pdf`, doc.output('arraybuffer'));
+  }
+
+  // ---------- boot ----------
+  showView(['#quotations', '#invoices'].includes(location.hash) ? 'quotations' : 'contracts');
+  render();
+  renderQuotes();
+  // ---------- Supabase storage ----------
+  // Each table holds rows of { id text, data jsonb }. This adapter gives the rest of the app
+  // the same collection/doc/onSnapshot calls it was written against.
+  const cfg = window.AMC_CONFIG || {};
+  const configured = window.supabase && cfg.supabaseUrl && !/YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey);
+  const sb = configured ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+  const listeners = {};
+  const fail = error => ({ code: error.code === '42501' || /row-level security|permission/i.test(error.message || '') ? 'invalid_argument' : 'unavailable', message: error.message, raw: error.code });
+  async function refresh(table) {
+    const ls = listeners[table]; if (!ls || !ls.length) return;
+    const { data, error } = await sb.from(table).select('id,data');
+    if (error) { ls.forEach(l => l.err && l.err(fail(error))); return; }
+    const rows = data || [];
+    ls.forEach(l => {
+      if (l.docId) { const r = rows.find(x => x.id === l.docId); l.next({ exists: !!r, data: () => r ? r.data : undefined }); }
+      else l.next({ docs: rows.map(r => ({ id: r.id, data: () => r.data || {} })) });
+    });
+  }
+  function docRef(table, id) {
+    return {
+      id,
+      async set(body) { const { error } = await sb.from(table).upsert({ id, data: body, updated_at: new Date().toISOString() }); if (error) throw fail(error); refresh(table); },
+      async update(patch) {
+        const { data, error } = await sb.from(table).select('data').eq('id', id).maybeSingle();
+        if (error) throw fail(error);
+        if (!data) throw { code: 'invalid_argument', message: 'Record not found' };
+        const { error: e2 } = await sb.from(table).update({ data: { ...data.data, ...patch }, updated_at: new Date().toISOString() }).eq('id', id);
+        if (e2) throw fail(e2); refresh(table);
+      },
+      async delete() { const { error } = await sb.from(table).delete().eq('id', id); if (error) throw fail(error); refresh(table); },
+      onSnapshot(next, err) { return listen(table, { next, err, docId: id }); }
+    };
+  }
+  function listen(table, l) {
+    (listeners[table] = listeners[table] || []).push(l);
+    if (!listeners[table].channel) {
+      listeners[table].channel = sb.channel('amc-' + table)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, () => refresh(table))
+        .subscribe();
+    }
+    refresh(table);
+    return () => { listeners[table] = (listeners[table] || []).filter(x => x !== l); };
+  }
+  // Tables are prefixed amc_ so they sit apart from anything else in the same Supabase project.
+  const T = name => 'amc_' + name;
+  const makeDb = () => ({
+    collection: name => ({ doc: id => docRef(T(name), id || (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2))), onSnapshot: (next, err) => listen(T(name), { next, err }) }),
+    doc: path => { const [name, id] = path.split('/'); return docRef(T(name), id); }
+  });
+  // Files download straight from the browser.
+  const browserDownloads = {
+    async save({ filename, data }) {
+      const type = /\.pdf$/i.test(filename) ? 'application/pdf' : /\.csv$/i.test(filename) ? 'text/csv' : 'application/octet-stream';
+      const url = URL.createObjectURL(new Blob([data], { type }));
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      return { status: 'saved' };
+    }
+  };
+
+  // ---------- first-time database setup ----------
+  // The public key can't create tables, so when they're missing the app hands over the exact SQL to run.
+  const setupSql = email => `create table if not exists public.amc_contracts  (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+create table if not exists public.amc_quotations (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+create table if not exists public.amc_invoices   (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+create table if not exists public.amc_settings   (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+
+create table if not exists public.amc_team (email text primary key);
+insert into public.amc_team (email) values ('${String(email || 'your-email@iotiq.co.in').replace(/'/g, "''")}') on conflict do nothing;
+
+create or replace function public.amc_is_team_member()
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists (select 1 from public.amc_team where lower(email) = lower(auth.jwt() ->> 'email')); $$;
+
+alter table public.amc_contracts  enable row level security;
+alter table public.amc_quotations enable row level security;
+alter table public.amc_invoices   enable row level security;
+alter table public.amc_settings   enable row level security;
+alter table public.amc_team       enable row level security;
+
+drop policy if exists "amc team access" on public.amc_contracts;
+drop policy if exists "amc team access" on public.amc_quotations;
+drop policy if exists "amc team access" on public.amc_invoices;
+drop policy if exists "amc team access" on public.amc_settings;
+create policy "amc team access" on public.amc_contracts  for all to authenticated using (public.amc_is_team_member()) with check (public.amc_is_team_member());
+create policy "amc team access" on public.amc_quotations for all to authenticated using (public.amc_is_team_member()) with check (public.amc_is_team_member());
+create policy "amc team access" on public.amc_invoices   for all to authenticated using (public.amc_is_team_member()) with check (public.amc_is_team_member());
+create policy "amc team access" on public.amc_settings   for all to authenticated using (public.amc_is_team_member()) with check (public.amc_is_team_member());
+
+do $$
+begin
+  begin alter publication supabase_realtime add table public.amc_contracts;  exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.amc_quotations; exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.amc_invoices;   exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.amc_settings;   exception when duplicate_object then null; end;
+end $$;
+
+notify pgrst, 'reload schema';`;
+  let setupShown = false;
+  function showSetup() {
+    if (setupShown) return; setupShown = true;
+    const ref = (/https:\/\/([a-z0-9]+)\.supabase\.co/.exec(cfg.supabaseUrl) || [])[1];
+    const sql = setupSql($('#who-email').textContent);
+    $('#app').hidden = true; $('#gate').hidden = false;
+    const f = $('#form-login');
+    f.style.width = 'min(760px, 100%)';
+    f.innerHTML = `<h1>Set up the database</h1><p class="byline">One-time step</p>
+      <p style="margin:0">Signed in. The AMC tables don't exist in your Supabase project yet. Do this once:</p>
+      <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+        <li>Click <strong>Copy SQL</strong>.</li>
+        <li>Click <strong>Open SQL Editor</strong>, paste, and click <strong>Run</strong>. Wait for <em>Success</em>.</li>
+        <li>Come back and click <strong>I've run it</strong>.</li>
+      </ol>
+      <div class="field"><label for="setup-sql">SQL (already includes your email)</label><textarea id="setup-sql" class="mono" rows="10" readonly style="font-size:12px;white-space:pre"></textarea></div>
+      <div class="actions"><button class="btn primary" type="button" id="setup-copy">Copy SQL</button>${ref ? `<a class="btn" href="https://supabase.com/dashboard/project/${ref}/sql/new" target="_blank" rel="noopener">Open SQL Editor</a>` : ''}<button class="btn" type="button" id="setup-done">I've run it</button></div>
+      <div class="err" id="setup-msg"></div>`;
+    $('#setup-sql').value = sql;
+    $('#setup-copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(sql); $('#setup-copy').textContent = 'Copied'; }
+      catch (e) { const t = $('#setup-sql'); t.focus(); t.select(); $('#setup-msg').textContent = 'Press Ctrl+C to copy the selected SQL.'; }
+    });
+    $('#setup-done').addEventListener('click', () => location.reload());
+  }
+
+  function showGate(msg) {
+    $('#app').hidden = true; $('#gate').hidden = false;
+    $('#l-err').textContent = msg || '';
+  }
+  $('#form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = $('#l-email').value.trim(), password = $('#l-pass').value;
+    if (!email || !password) { $('#l-err').textContent = 'Enter your email and password.'; return; }
+    $('#l-btn').disabled = true; $('#l-err').textContent = '';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    $('#l-btn').disabled = false;
+    if (error) $('#l-err').textContent = 'That email and password didn’t match. Check them and try again.';
+  });
+  $('#btn-signout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+  let started = false;
+  if (!configured) {
+    showGate();
+    $('#form-login').innerHTML = '<h1>AMC Tracker</h1><p class="byline">@ IOTIQ Innovations</p><p style="margin:0">This copy isn’t connected to a database yet. Open <code>index.html</code>, paste your Supabase project URL and anon key into <code>AMC_CONFIG</code> near the bottom, then upload it again.</p>';
+  } else {
+    sb.auth.onAuthStateChange((_event, session) => {
+      if (!session) { if (started) location.reload(); else showGate(); return; }
+      $('#who-email').textContent = session.user.email || '';
+      $('#gate').hidden = true; $('#app').hidden = false;
+      if (!started) { started = true; start(); }
+    });
+  }
+
+  function start() {
+    db = makeDb();
+    downloads = browserDownloads;
+    col = db.collection('contracts');
+    qcol = db.collection('quotations');
+    icol = db.collection('invoices');
+    icol.onSnapshot(snap => {
+      state.invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.iready = true; renderQuotes(); render();
+    }, () => { toast('Lost connection to invoices. Reload the page to reconnect.'); });
+    db.doc('settings/company').onSnapshot(s => { state.co = s.exists ? s.data() : {}; }, () => {});
+    qcol.onSnapshot(snap => {
+      state.quotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.qready = true; renderQuotes(); render();
+    }, () => { $('#qrows').innerHTML = '<div class="empty"><strong>Lost connection to quotations</strong><span>Reload the page to reconnect.</span></div>'; });
+    col.onSnapshot(snap => {
+      state.rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.ready = true; render();
+    }, e => {
+      if (e && e.raw === 'PGRST205') { showSetup(); return; }
+      $('#rows').innerHTML = '<div class="empty"><strong>Couldn’t load contracts</strong><span>Check your internet connection, then reload the page.</span></div>';
+    });
+  }
+  // Refresh "days left" when the date rolls over while the page is open.
+  setInterval(() => { if (state.ready) render(); if (state.qready) renderQuotes(); }, 60 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
